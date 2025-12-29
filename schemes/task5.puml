@@ -3,12 +3,7 @@
 
 title MongoDB Cluster с подключением PyMongo API v4
 
-Person(client_asia, "Клиент Азия")
-Person(client_europa, "Клиент Европа")
-Container(cdn_asia, "CDN Азия", "", "Статический контент Азии")
-Container(cache_asia, "Кеш CDN Азии", "", "Кеш статического контента Азии")
-Container(cdn_europa, "CDN Европа", "", "Статический контент Европы")
-Container(cache_europa, "Кеш CDN Европы", "", "Кеш статического контента Европы")
+Person(client, "Клиент")
 Container(site, "Сайт", "", "")
 Container(gateway, "APISIX Gateway", "", "")
 Container(consul, "Consul", "", "Реестр приложений")
@@ -30,13 +25,7 @@ Container(shard2_primary, "Shard 2 Primary", "MongoDB", "Primary")
 Container(shard2_secondary1, "Shard 2 Secondary 1", "MongoDB", "Replica")
 Container(shard2_secondary2, "Shard 2 Secondary 2", "MongoDB", "Replica")
 
-Rel(client_asia, cdn_asia, "Запрос")
-Rel(cdn_asia, site, "Запрос")
-Rel(cdn_asia, cache_asia, "Запрос кеша")
-Rel(client_europa, cdn_europa, "Запрос")
-Rel(cdn_europa, site, "Запрос")
-Rel(cdn_europa, cache_europa, "Запрос кеша")
-
+Rel(client, site, "Запрос")
 Rel(site, gateway, "")
 Rel(gateway, consul, "Информация об инстансах приложения")
 Rel(consul, pymongo_api1,"Регистрация/отмена")

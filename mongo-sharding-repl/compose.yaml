@@ -4,6 +4,7 @@ services:
   # Config Server
   config1:
     container_name: config1
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -17,13 +18,14 @@ services:
     healthcheck:
       test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
-      start_period: 2m
+      start_period: 10s
     volumes:
       - config1_data:/data/configdb      
     networks:
       - mongo_cluster
   config2:
     container_name: config2
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -37,7 +39,7 @@ services:
     healthcheck:
       test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
-      start_period: 2m
+      start_period: 10s
     volumes:
       - config2_data:/data/configdb
     networks:
@@ -45,6 +47,7 @@ services:
 
   config3:
     container_name: config3
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -58,7 +61,7 @@ services:
     healthcheck:
       test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
-      start_period: 2m    
+      start_period: 10s    
     volumes:
       - config3_data:/data/configdb
     networks:
@@ -67,6 +70,7 @@ services:
   # Шард 1
   shard1_primary:
     container_name: shard1_primary
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -89,6 +93,7 @@ services:
 
   shard1_secondary1:
     container_name: shard1_secondary1
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -113,6 +118,7 @@ services:
 
   shard1_secondary2:
     container_name: shard1_secondary2
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -139,6 +145,7 @@ services:
   # Шард 2
   shard2_primary:
     container_name: shard2_primary
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -161,6 +168,7 @@ services:
 
   shard2_secondary1:
     container_name: shard2_secondary1
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -185,6 +193,7 @@ services:
 
   shard2_secondary2:
     container_name: shard2_secondary2
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -211,6 +220,7 @@ services:
   # Query Router (mongos)
   query_router:
     container_name: query_router
+    restart: always
     image: dh-mirror.gitverse.ru/mongo:latest
     command:
       [
@@ -226,12 +236,9 @@ services:
       interval: 5s
       start_period: 10s
     depends_on:
-      config1:
-        condition: service_healthy
-      config2:
-        condition: service_healthy
-      config3:
-        condition: service_healthy
+      - config1
+      - config2
+      - config3
     volumes:
       - ./scripts/init-sharding.js:/docker-entrypoint-initdb.d/init-sharding.js
       - ./scripts/mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh
@@ -242,6 +249,7 @@ services:
 
   pymongo_api:
     container_name: pymongo_api
+    restart: always
     build:
       context: api_app
       dockerfile: Dockerfile
