@@ -6,8 +6,8 @@
 
 ### Метрики на уровне шарда (Node-Level Metrics)
 Для каждого шарда необходимо настроить сбор метрик (источник: Prometheus + MongoDB Exporter):
-| Метрика | Суть | Назначение |
-|--|--|--|
+|Метрика|Суть|Назначение|
+|:--|:--|:--|
 |mongodb_shard_disk_usage_bytes|Дисковая утилизация|Объем занятого пространства на диске. Позволяет отслеживать дисбаланс по объему данных.|
 |mongodb_shard_iops_read, mongodb_shard_iops_write|Операции ввода-вывода (IOPS)|Количество операций чтения и записи в секунду. Ключевой показатель нагрузки на диск.|
 |mongodb_shard_cpu_usage_percent|Загрузка CPU|Процент использования процессора. Резкий рост может указывать на "горячий" шард.|
@@ -15,11 +15,13 @@
 |mongodb_shard_connections_current|Количество подключений|Резкое увеличение числа подключений к конкретному шарду — тревожный сигнал.|
 |mongodb_shard_disk_available_bytes|Свободное место на диске|Следить, чтобы заранее избегать «out‑of‑space»|
 |mongodb_shard_memory_virtual_bytes|Объем виртуальной памяти, зарезервированной шардом|Если virtual сильно растет, а resident стоит на месте, это может указывать на создание слишком большого количества незакрытых соединений или утечку в структурах управления памятью.|
+|mongodb_zone_operations_total|Операции чтения/записи по зонам|Алерт ставится как на абсолютное значение по зоне, так и на относительное - расходжение нагрузки между зонами.|
+|mongodb_zone_chunks_count/mongodb_zone_data_size_bytes|Количество чанков (объем данных) в каждой зоне|Алерт ставится как на абсолютное значение по зоне, так и на относительное - расходжение нагрузки между зонами.|
 
 ### Метрики на уровне коллекции и чанков (Collection/Chunk-Level Metrics)
 Для каждой коллекции/шарда необходимо настроить сбор метрик:
 | Метрика | Суть | Назначение | Источник|
-|--|--|--|--|
+|:--|:--|:--|:--|
 |mongodb_collection_shard_operations_total|Статистика обращений по шардам|Мониторинг должен считать количество запросов (read/write), приходящихся на каждый шард для конкретной коллекции.|Кастомный скрипт/агрегация.|
 |mongodb_shard_chunks_count|Распределение и размер чанков|Количество чанков на шарде для конкретной коллекции.|Встроенная команда MongoDB db.collection.getShardDistribution()|
 |mongodb_shard_jumbo_chunks_count|Количество "jumbo chunks" (чанков, которые невозможно разделить)|Если значение метрики больше 0 и растет - текущий ключ шардирования перестал справляться с объемом данных. Это прямая причина "горячих" шардов.|Prometheus + MongoDB Exporter|
@@ -62,3 +64,63 @@ MongoDB Balancer по умолчанию работает только на ос
 
 #### Предупрежедние о jumbo chunks
 По метрике mongodb_shard_jumbo_chunks_count определять коллекции, для котоых необходимо разобраться с jumbo chunk (определенный порог jumbo chunk к общему количеству).
+
+# Приложения
+
+## Концепция Zoned Tag-Aware Sharding
+**Zoned sharding** — это механизм в MongoDB, который позволяет явно привязывать данные (чанки) к определённым шардам на основе значений ключа шардирования. 
+Это особенно полезно для:
+- Географической локализации данных
+- Выделения *горячих* данных на отдельные высокопроизводительные шарды
+- Изоляции критичных или интенсивно используемых данных
+
+### Механизм работы
+
+#### Определение зон
+Зона — это логическая группировка шардов. Каждой зоне присваивается уникальное имя.
+```bash
+sh.addShardTag("shard1", "zone_eu")
+sh.addShardTag("shard2", "zone_us") 
+sh.addShardTag("shard3", "zone_hot_data")
+```
+
+#### Привязка диапазонов данных к зонам
+Определяем, какие диапазоны ключа шардирования относятся к каким зонам:
+```bash
+// Для географического шардирования
+sh.addTagRange("db.users", { country: "DE", user_id: MinKey }, { country: "DE", user_id: MaxKey }, "zone_eu")
+sh.addTagRange("db.users", { country: "US", user_id: MinKey }, { country: "US", user_id: MaxKey }, "zone_us")
+
+// Для выделения "горячих" данных
+sh.addTagRange("db.orders", { is_premium: true, order_date: MinKey }, { is_premium: true, order_date: MaxKey }, "zone_hot_data")
+```
+
+#### Автоматическое распределение
+Балансировщик MongoDB автоматически перемещает чанки в соответствующие их диапазону зонам.
+
+## Использование
+
+### Геошардинг
+```bash
+// EU пользователи на шардах в EU-датацентре
+sh.addTagRange("db.users", { region: "eu", user_id: MinKey }, { region: "eu", user_id: MaxKey }, "zone_eu")
+
+// US пользователи на шардах в US-датацентре  
+sh.addTagRange("db.users", { region: "us", user_id: MinKey }, { region: "us", user_id: MaxKey }, "zone_us")
+```
+
+### Выделение *горячих* данных
+```bash
+// Премиум пользователи на SSD-шардах
+sh.addTagRange("db.users", { tier: "premium", user_id: MinKey }, { tier: "premium", user_id: MaxKey }, "zone_ssd")
+
+// Архивные данные на HDD-шардах
+sh.addTagRange("db.users", { tier: "archive", user_id: MinKey }, { tier: "archive", user_id: MaxKey }, "zone_hdd")
+```
+
+### Балансировка нагрузки
+```bash
+// Распределение самых активных данных по нескольким шардам
+sh.addTagRange("db.sessions", { is_active: true, session_id: MinKey }, { is_active: true, session_id: MaxKey }, "zone_hot")
+sh.addTagRange("db.sessions", { is_active: false, session_id: MinKey }, { is_active: false, session_id: MaxKey }, "zone_cold")
+```
