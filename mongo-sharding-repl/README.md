@@ -55,7 +55,7 @@ docker exec -it query_router mongosh --port 27020 --eval '
 ./scripts/mongo-init.sh
 ```
 
-## Проверим
+## Проверим mongodb
 ```shell
 docker exec -it query_router mongosh --port 27020
 
@@ -67,4 +67,6 @@ db.helloDoc.find()
 
 // Проверить распределение коллекции по шардам
 db.helloDoc.getShardDistribution()
+
+quit
 ```
