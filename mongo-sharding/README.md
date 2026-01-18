@@ -30,8 +30,22 @@ docker exec -it query_router mongosh --port 27020 --eval '
   sh.shardCollection("somedb.helloDoc", { "name" : "hashed" })'
   ```
 
-Заполняем mongodb данными
+### Заполняем mongodb данными
 
 ```shell
 ./scripts/mongo-init.sh
+```
+
+### Проверим
+```shell
+docker exec -it query_router mongosh --port 27020
+
+// Переключиться на базу данных
+use somedb
+
+// Найти документы
+db.helloDoc.find()
+
+// Проверить распределение коллекции по шардам
+db.helloDoc.getShardDistribution()
 ```

@@ -76,7 +76,6 @@ services:
     networks:
       - mongo_cluster
 
-  # Query Router (mongos)
   query_router:
     container_name: query_router
     image: dh-mirror.gitverse.ru/mongo:latest
@@ -85,13 +84,7 @@ services:
       - config_server
     ports:
       - "27020:27020"
-    command:
-      [
-        "mongos",
-        "--configdb config_server/config_server:27017",
-        "--bind_ip_all",
-        "--port 27020"
-      ]
+    command: mongos --configdb config_server/config_server:27017 --bind_ip_all --port 27020
     healthcheck:
       test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
