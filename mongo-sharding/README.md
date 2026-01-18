@@ -12,13 +12,26 @@ docker compose up -d
 
 ### Config Server
 ```shell
-docker exec -it config_server mongosh --eval 'rs.initiate({_id: "config_server", configsvr: true, members: [{_id: 0, host: "config_server:27017"}]})'
+docker exec -it config_server mongosh --eval 'rs.initiate({
+  _id: "config_server", 
+  configsvr: true, 
+  members: [
+    {_id: 0, host: "config_server:27017"}
+]})'
 ```
 
 ### Шарды
 ```shell
-docker exec -it mongodb1 mongosh --port 27018 --eval 'rs.initiate({_id: "shard1", members: [{_id: 0, host: "mongodb1:27018"}]})'
-docker exec -it mongodb2 mongosh --port 27019 --eval 'rs.initiate({_id: "shard2", members: [{_id: 0, host: "mongodb2:27019"}]})'
+docker exec -it mongodb1 mongosh --port 27018 --eval 'rs.initiate({
+  _id: "shard1", 
+  members: [
+    {_id: 0, host: "mongodb1:27018"}
+]})'
+docker exec -it mongodb2 mongosh --port 27019 --eval 'rs.initiate({
+  _id: "shard2", 
+  members: [
+    {_id: 0, host: "mongodb2:27019"}
+]})'
 ```
 
 ### Добавление шардов в кластер
